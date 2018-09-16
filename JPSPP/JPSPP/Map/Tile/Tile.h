@@ -2,56 +2,67 @@
 #include "Global.h"
 #include "JumpPoint.h"
 
+class Map;
 
-class Tile 
+
+class Tile : std::enable_shared_from_this<Tile>
 {
 public:
 	using UniquePtr = std::unique_ptr<Tile>;
+	using SharedPtr = std::shared_ptr<Tile>;
+	using WeakPtr = std::weak_ptr<Tile>;
+
 private:
-	int m_PosX = 0;
-	int m_PosY = 0;
+	std::weak_ptr<Map>	m_pMap;
+	int					m_PosX = 0;
+	int					m_PosY = 0;
+	bool				m_IsObstacle = false;
 
-	bool m_IsObstacle = false;
-	std::array<int, Enum2Num(GAME::DIRECTIONS::DIRECTIONS_END)> m_DistanceInfos = { 0, };
-	
 
-	JumpPoint m_JumpPointInfo;
+	//점프포인트 관련 정보들 	
+	bool																	m_IsJumpPoint = false;
+	std::array<bool, static_cast<int>(GAME::DIRECTIONS::STRAIGHT_COUNT)>	m_IsJumpPointAccesFromDir = { false, };
+
+	//프리프로세싱이 모두 끝나면 길찾기 정보는 이쪽에 저장된다. (8방향)
+	std::array<int, static_cast<int>(GAME::DIRECTIONS::DIRECTIONS_END)>		m_DistanceInfos = { 0, };
 
 public:
-	Tile() = default;
-	Tile(int posX, int posY, bool isObstacle
-		, decltype(m_DistanceInfos) distanceInfos
-		, decltype(m_JumpPointInfo) jumpPointInfo)
-		: m_PosX(posX)
+	Tile(std::weak_ptr<Map> pMap
+		, int posX, int posY)
+		: m_pMap(pMap)
+		, m_PosX(posX)
 		, m_PosY(posY)
-		, m_IsObstacle(isObstacle)
-		, m_DistanceInfos(std::move(distanceInfos))
-		, m_JumpPointInfo(std::move(jumpPointInfo))
 	{}
+
+	~Tile();
 
 public:
 	inline bool IsObstacle() const { return m_IsObstacle; }
 	inline void SetIsObstacle(const bool isObstacle) { m_IsObstacle = isObstacle; }
 
-	inline void SetJumpPointAllowEntry(const GAME::DIRECTIONS direction, bool isAllowEntry) { m_JumpPointInfo.SetAllowEntry(direction, isAllowEntry); }
-	inline bool GetJumpPointAllowEntry(const GAME::DIRECTIONS direction) const { return m_JumpPointInfo.GetAllowEntry(direction); }
-	
-	inline bool IsJumpPoint() const { return m_JumpPointInfo.IsJumpPoint(); }
-	bool CheckJumpPointAllowEntry(const GAME::DIRECTIONS from) const { return m_JumpPointInfo.CheckAllowEntry(from); }
+	inline bool IsJumpPoint() const { return m_IsJumpPoint; }
+	inline bool IsJumpPointAcessFrom(GAME::DIRECTIONS fromDir)  const 
+	{
+		if (!IsStraightDirection(fromDir)) 
+			return false;
 
+		auto idx = Enum2Num(fromDir);
+		return idx < m_IsJumpPointAccesFromDir.size() ? m_IsJumpPointAccesFromDir[idx] : false;
+	}
+	
 
 	inline void SetDistanceInfo(GAME::DIRECTIONS direction, int distance)
 	{
-		size_t idx = Enum2Num(direction);
-		if (idx < 0 || m_DistanceInfos.size() <= idx) return;
+		auto idx = Enum2Num(direction);
+		if (m_DistanceInfos.size() <= idx) return;
 
 		m_DistanceInfos[idx] = distance;
 	}
 
 	inline int GetDistanceInfo(GAME::DIRECTIONS direction) const
 	{
-		size_t idx = Enum2Num(direction);
-		if (idx < 0 || m_DistanceInfos.size() <= idx) return 0;
+		auto idx = Enum2Num(direction);
+		if (m_DistanceInfos.size() <= idx) return 0;
 
 		return m_DistanceInfos[idx];
 	}
@@ -69,7 +80,5 @@ public:
 	void ClearJumpPointInfo();
 	void ClearDistanceInfo();
 
-
-	void UpdateJumpPointAllowEntry(const std::array<GAME::TILE_TYPE, Enum2Num(GAME::DIRECTIONS::DIRECTIONS_COUNT)>& neighborTileType);
-
+	void UpdateJumpPoint();
 };

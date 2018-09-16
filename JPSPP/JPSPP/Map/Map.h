@@ -1,10 +1,15 @@
 #pragma once
 #include "Global.h"
+#include "Tile/Tile.h"
 
-class Tile;
 
-class Map
+
+
+class Map : public std::enable_shared_from_this<Map>
 {
+public:
+	using SharedPtr = std::shared_ptr<Map>;
+	using WeakPtr = std::weak_ptr<Map>;
 private:
 	int m_SizeX = 0;
 	int m_SizeY = 0;
@@ -12,16 +17,21 @@ private:
 
 
 	//타일정보는 좌->우, 상->하로 순서로 적재된다. 
-	//ex)
+	//ex)  m_SizeX = 3, m_SizeY = 3 일때 
 	//0 1 2 
 	//3 4 5
 	//6 7 8
-	std::vector<std::unique_ptr<Tile>>	m_TileRepos;
+	std::vector<Tile::SharedPtr>	m_TileRepos;
 
-
+public:
+	Map(int sizeX, int sizeY)
+		: m_SizeX(sizeX)
+		, m_SizeY(sizeY)
+	{ }
 
 private:
 	inline size_t GetRepoIdx(int posX, int posY) const { return posY * m_SizeX + posX; }
+	inline std::tuple<int, int> GetXY(size_t idx) const { return std::make_tuple( static_cast<int>(idx % m_SizeX), static_cast<int>(idx / m_SizeX)); }
 
 public:
 	inline int GetSizeX() const { return m_SizeX; }
@@ -38,7 +48,7 @@ public:
 
 	decltype(m_TileRepos)& GetTileRepo() { return m_TileRepos; }
 
-private:
+
 //점프포인트 생성 & 후처리 관련 해야할일 (순차적으로 실행되어야 한다.)
 //1.각 노드에서 방향 플래그를 설정하여 모든 기본 점프 지점을 식별합니다.
 //2. 지도 왼쪽에서 오른쪽으로 스캔하면서 모든 서쪽 방향 직진 점프 지점과 서쪽 방향 벽의 거리로 표시한다.
@@ -47,8 +57,19 @@ private:
 //5. 지도를 아래쪽에서 위쪽으로 스캔하면서 모든 남쪽 방향으로 직선 점프 지점과 남쪽 방향 벽의 거리를 표시한다.
 //6. 지도를 아래쪽에서 위쪽으로 스캔하면서 남서/남동 대각선 점프지점과 남서/남동의 벽의 거리를 표시한다.
 //7. 지도를 위쪽에서 아래쪽으로 스캔하면서 북서/북동 대각선 점프지점과 북서/북동의 벽의 거리로 표시한다.
+public:
+	void InitializeTileRepository();
 	void ProcessUpdateJumpPoint();
-	void UpdateAllJumpPoint();
-	void UpdateStraightDistance(GAME::DIRECTIONS direction);
-	void UpdateDiagonalDistance(GAME::DIRECTIONS direction);
+private:
+	void UpdateJumpPoint();
+	void UpdateDistance_Straight(GAME::DIRECTIONS direction);
+	void UpdateDistance_Diagonal(GAME::DIRECTIONS direction);	
+
+public:
+	void DisplayMap_OnConsole();
+	void SetObstacle(int x, int y);
+
+
+public:
+	std::vector<GAME::POS_INFO> FindPath(GAME::POS_INFO startPos, GAME::POS_INFO endPos);
 };
