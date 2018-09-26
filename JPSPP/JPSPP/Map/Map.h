@@ -10,6 +10,7 @@ class Map : public std::enable_shared_from_this<Map>
 public:
 	using SharedPtr = std::shared_ptr<Map>;
 	using WeakPtr = std::weak_ptr<Map>;
+	
 private:
 	int m_SizeX = 0;
 	int m_SizeY = 0;
@@ -30,7 +31,14 @@ public:
 	{ }
 
 private:
-	inline size_t GetRepoIdx(int posX, int posY) const { return posY * m_SizeX + posX; }
+	inline int GetRepoIdx(int posX, int posY) const 
+	{ 
+		if (posY < 0 || m_SizeY <= posY
+		||  posX < 0 || m_SizeX <= posX)
+			return -1;
+
+		return posY * m_SizeX + posX; 
+	}
 	inline std::tuple<int, int> GetXY(size_t idx) const { return std::make_tuple( static_cast<int>(idx % m_SizeX), static_cast<int>(idx / m_SizeX)); }
 
 public:
@@ -39,8 +47,8 @@ public:
 
 	Tile* GetTile(int posX, int posY) const
 	{
-		size_t idx = GetRepoIdx(posX, posY);
-		if (idx < 0 || m_TileRepos.size() <= idx) return nullptr;
+		int idx = GetRepoIdx(posX, posY);
+		if (idx < 0 || (int)m_TileRepos.size() <= idx) return nullptr;
 
 
 		return m_TileRepos[idx].get();
@@ -71,5 +79,34 @@ public:
 
 
 public:
-	std::vector<GAME::POS_INFO> FindPath(GAME::POS_INFO startPos, GAME::POS_INFO endPos);
+	std::vector<GAME::POS_INFO> FindPath(GAME::POS_INFO startPos, GAME::POS_INFO endPos) const;
+
+private:	
+	struct NODE_INFO
+	{
+		Tile*				m_pTile					= nullptr;
+		NODE_INFO*			m_pParent				= nullptr;
+		float				m_AccumDistance			= 0.f;
+		float				m_ExpectTotalDistance	= 0.f;
+		GAME::DIRECTIONS	m_Dir					= GAME::DIRECTIONS::INVALID;
+		
+
+		NODE_INFO() = default;
+		NODE_INFO(Tile* pTile, NODE_INFO* pParent, float accumDistance, float expectTotalDistance, GAME::DIRECTIONS dir)
+			: m_pTile(pTile)
+			, m_pParent(pParent)
+			, m_AccumDistance(accumDistance)
+			, m_ExpectTotalDistance(expectTotalDistance)
+			, m_Dir(dir)
+		{}
+
+		using UniquePtr = std::unique_ptr<NODE_INFO>;
+	};
+
+	
+
+	bool						CheckPos2PosConnected(int startX, int startY, int endX, int endY) const;
+	std::list<GAME::POS_INFO>	FindNodeForCheckConnect(int startX, int startY, int endX, int endY) const;
+	std::vector<GAME::POS_INFO> CreatePath(const NODE_INFO* pNodeInfo, int endX, int endY) const;
+	GAME::DIRECTIONS			CalcDirectionPos2Pos(int startX, int startY, int endX, int endY) const;
 };

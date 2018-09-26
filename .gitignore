@@ -1,2 +1,4 @@
 JPSPP/.vs/
 JPSPP/JPSPP/x64/
+*.ipdb
+*.iobj
